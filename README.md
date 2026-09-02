@@ -5,6 +5,8 @@ step, no server, no dependencies — open it and it works.
 
 **Live demo:** https://keith160110.github.io/Testing/
 
+![The LogiTrack Inventory dashboard: a summary strip of warehouse totals above a sortable, searchable inventory table, with the add-record form beside it.](docs/screenshot.png)
+
 ## Running it
 
 Download [`index.html`](index.html) and double-click it. That's the whole install.
