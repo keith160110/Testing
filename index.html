@@ -3,33 +3,52 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#034EA2">
 <title>LogiTrack Inventory</title>
 
 <style>
 /* ============================================================================
    1. DESIGN TOKENS
+   Palette is sampled from the Kacific mark: #034EA2 wordmark, #A7A9AC swoosh.
    ========================================================================= */
 :root {
-  --accent:        #1e40af;   /* deep blue */
-  --accent-dark:   #172f7d;
-  --accent-soft:   #eaf0fd;
-  --ink:           #1b2430;
-  --ink-muted:     #5c6a7d;
-  --ink-faint:     #8794a6;
-  --page:          #f4f6f9;
+  /* --- Kacific brand ---------------------------------------------------- */
+  --kac-blue:      #034ea2;   /* wordmark blue, straight off the logo */
+  --kac-blue-deep: #023a79;
+  --kac-blue-lift: #1f6fc4;
+  --kac-grey:      #a7a9ac;   /* the swoosh grey */
+
+  --accent:        var(--kac-blue);
+  --accent-dark:   var(--kac-blue-deep);
+  --accent-soft:   #e7f0fb;
+
+  /* --- Light blue: filter bar + its controls ---------------------------- */
+  --filter-bg:     #dcecfb;
+  --filter-bg-top: #eaf4ff;
+  --filter-line:   #b4d4f2;
+  --filter-ink:    #0d4780;
+  --filter-field:  #f5faff;
+
+  --ink:           #17232f;
+  --ink-muted:     #55677c;
+  --ink-faint:     #8090a3;
+  --page:          #f1f5fa;
   --card:          #ffffff;
-  --line:          #e3e8ef;
-  --zebra:         #fafbfd;
-  --hover:         #f0f5ff;
+  --line:          #dde5ef;
+  --zebra:         #f8fbfe;
+  --hover:         #e9f2fd;
 
-  --ok-bg:   #e7f6ec;  --ok-fg:   #17703c;  --ok-dot:   #1f9d55;
-  --warn-bg: #fdf2dc;  --warn-fg: #8a5a05;  --warn-dot: #d99408;
-  --bad-bg:  #fdeaea;  --bad-fg:  #9b1c1c;  --bad-dot:  #dc2626;
+  --ok-bg:   #e4f5ea;  --ok-fg:   #14683a;  --ok-dot:   #1f9d55;
+  --warn-bg: #fdf1d8;  --warn-fg: #855503;  --warn-dot: #d99408;
+  --bad-bg:  #fce9e9;  --bad-fg:  #97191a;  --bad-dot:  #d92828;
 
-  --radius:  10px;
-  --shadow:  0 1px 2px rgba(16, 24, 40, .05), 0 4px 14px rgba(16, 24, 40, .06);
-  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
-          Arial, "Noto Sans", sans-serif;
+  --radius:  12px;
+  --shadow:  0 1px 2px rgba(3, 78, 162, .06), 0 6px 18px rgba(3, 78, 162, .08);
+
+  /* Comic face, resolved from what is already installed — the page loads no
+     webfonts, so this is a local-only stack with a cursive last resort. */
+  --font: "Comic Sans MS", "Comic Neue", "Chalkboard SE", "Comic Relief",
+          "ChalkboardSE-Regular", cursive;
 }
 
 /* ============================================================================
@@ -37,17 +56,27 @@
    ========================================================================= */
 * { box-sizing: border-box; }
 
+html { color-scheme: light; }
+
 body {
   margin: 0;
   background: var(--page);
   color: var(--ink);
   font-family: var(--font);
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: rgba(3, 78, 162, .14);
 }
 
-h1, h2 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
+/* Comic faces run wide and loose; tighten the tracking so dense data stays
+   scannable and the table keeps its column rhythm. */
+h1, h2 { margin: 0; font-weight: 700; letter-spacing: -.015em; text-wrap: balance; }
+
+button, input, select, textarea { font-family: inherit; }
+
+/* Kill the double-tap zoom delay on the controls people tap most. */
+button, .th-inner, input, select { touch-action: manipulation; }
 
 /* Consistent, visible focus ring on every interactive element. */
 a:focus-visible,
@@ -55,7 +84,7 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 th[tabindex]:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--kac-blue);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -67,63 +96,134 @@ th[tabindex]:focus-visible {
   clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 
+/* Skip link — visible only once it takes focus. */
+.skip-link {
+  position: absolute; left: 12px; top: -60px; z-index: 30;
+  background: #fff; color: var(--kac-blue-deep);
+  border: 2px solid var(--kac-blue);
+  border-radius: 8px;
+  padding: 9px 15px;
+  font-weight: 700; text-decoration: none;
+  transition: top .15s ease;
+}
+.skip-link:focus { top: 12px; }
+
 .wrap { max-width: 1500px; margin: 0 auto; padding: 0 24px; }
 
 /* ============================================================================
    3. HEADER + SUMMARY STRIP
+   Signature: the logo's grey swoosh, redrawn large as an orbital arc behind
+   the masthead. It is the one loud gesture on the page; everything else stays
+   quiet so the data reads first.
    ========================================================================= */
 .topbar {
-  background: linear-gradient(105deg, var(--accent-dark), var(--accent));
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 180% at 88% -40%, var(--kac-blue-lift) 0%, transparent 58%),
+    linear-gradient(104deg, var(--kac-blue-deep) 0%, var(--kac-blue) 62%, #0a5cb8 100%);
   color: #fff;
-  padding: 22px 0 20px;
+  padding: 26px 0 44px;
+}
+
+/* The swoosh: an ellipse cropped by the header, echoing the mark's sweep. */
+.topbar::before,
+.topbar::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, .16);
+  pointer-events: none;
+}
+.topbar::before {
+  width: 780px; height: 300px;
+  right: -170px; top: -128px;
+  border-color: rgba(255, 255, 255, .22);
+  transform: rotate(-11deg);
+}
+.topbar::after {
+  width: 520px; height: 200px;
+  right: -60px; top: -34px;
+  border-color: rgba(167, 169, 172, .30);
+  transform: rotate(-11deg);
 }
 
 .topbar-inner {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px;
+  position: relative; z-index: 1;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 14px 22px;
 }
 
-.brand { display: flex; align-items: center; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 16px; min-width: 0; }
 
-.brand-mark {
-  width: 38px; height: 38px; flex: none;
-  display: grid; place-items: center;
-  background: rgba(255, 255, 255, .16);
-  border: 1px solid rgba(255, 255, 255, .28);
+/* The mark sits on a white chip — the logo is drawn in brand blue and must
+   never sit directly on the blue field. */
+.brand-logo {
+  flex: none;
+  display: block;
+  height: 46px; width: auto;
+  background: #fff;
   border-radius: 9px;
-  font-size: 18px;
+  padding: 8px 13px;
+  box-shadow: 0 2px 10px rgba(2, 40, 84, .22);
 }
 
-.topbar h1 { font-size: 20px; }
+.brand-divider {
+  flex: none;
+  width: 1px; height: 46px;
+  background: rgba(255, 255, 255, .28);
+}
+
+.topbar h1 { font-size: 21px; letter-spacing: -.01em; }
 
 .tagline {
-  margin: 1px 0 0;
+  margin: 2px 0 0;
   font-size: 13px;
-  color: rgba(255, 255, 255, .78);
+  color: rgba(255, 255, 255, .82);
+}
+
+.brand-eyebrow {
+  display: block;
+  margin-bottom: 1px;
+  font-size: 10.5px; font-weight: 700;
+  letter-spacing: .16em; text-transform: uppercase;
+  color: rgba(255, 255, 255, .68);
 }
 
 .summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
-  margin: -26px auto 22px;
+  margin: -30px auto 22px;
 }
 
 .stat {
+  position: relative;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 14px 16px;
+  padding: 15px 17px 15px 19px;
+  overflow: hidden;
 }
 
+/* Brand-blue spine on each tile; the alert tile switches to red. */
+.stat::before {
+  content: "";
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--kac-blue);
+}
+.stat.is-alert::before { background: var(--bad-dot); }
+
 .stat-label {
-  font-size: 11px; font-weight: 600; letter-spacing: .06em;
+  font-size: 11px; font-weight: 700; letter-spacing: .07em;
   text-transform: uppercase; color: var(--ink-faint);
 }
 
 .stat-value {
-  font-size: 24px; font-weight: 680; letter-spacing: -.02em;
-  margin-top: 3px; font-variant-numeric: tabular-nums;
+  font-size: 26px; font-weight: 700; letter-spacing: -.02em;
+  margin-top: 2px; font-variant-numeric: tabular-nums;
+  color: var(--kac-blue-deep);
 }
 
 .stat.is-alert .stat-value { color: var(--bad-dot); }
@@ -142,26 +242,29 @@ th[tabindex]:focus-visible {
 .live-message > span {
   display: inline-flex; align-items: center; gap: 8px;
   background: var(--ok-bg); color: var(--ok-fg);
-  border: 1px solid #c6e7d2;
-  border-radius: 8px;
-  padding: 9px 14px;
-  font-size: 13px; font-weight: 550;
+  border: 1px solid #bfe4cd;
+  border-radius: 9px;
+  padding: 9px 15px;
+  font-size: 13px; font-weight: 700;
 }
 
 .live-message > span.is-removed {
-  background: var(--accent-soft); color: var(--accent-dark);
-  border-color: #cddcf9;
+  background: var(--accent-soft); color: var(--kac-blue-deep);
+  border-color: #c3daf5;
 }
 
 /* ============================================================================
    5. LAYOUT + CARDS
+   Add-record form on the left, inventory records on the right. DOM order
+   matches that, so keyboard focus runs left-to-right on desktop and
+   top-to-bottom once the grid stacks.
    ========================================================================= */
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 2.4fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2.7fr);
   gap: 20px;
   align-items: start;
-  padding-bottom: 40px;
+  padding-bottom: 44px;
 }
 
 .card {
@@ -172,37 +275,60 @@ th[tabindex]:focus-visible {
   overflow: hidden;         /* keeps the sticky header inside rounded corners */
 }
 
+/* The form is short and the table is tall — pin the form so it stays in reach
+   while the records column scrolls past it. */
+.card-form { position: sticky; top: 16px; }
+
 .card-head {
   padding: 16px 18px;
   border-bottom: 1px solid var(--line);
+  scroll-margin-top: 16px;
 }
 
-.card-head h2 { font-size: 15px; }
+.card-head h2 { font-size: 16px; color: var(--kac-blue-deep); scroll-margin-top: 20px; }
+.card-head h2:focus { outline: none; }
+.card-head h2:focus-visible { outline: 2px solid var(--kac-blue); outline-offset: 4px; }
 
 .card-head p {
-  margin: 2px 0 0;
+  margin: 3px 0 0;
   font-size: 12.5px;
   color: var(--ink-muted);
 }
 
 /* ============================================================================
-   6. TOOLBAR (search + category filter)
+   6. TOOLBAR — the light-blue filter bar
    ========================================================================= */
 .toolbar {
-  display: flex; flex-wrap: wrap; gap: 10px;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--line);
-  background: #fcfdff;
+  display: flex; flex-wrap: wrap; gap: 10px 12px;
+  padding: 14px 18px 15px;
+  border-bottom: 1px solid var(--filter-line);
+  background: linear-gradient(180deg, var(--filter-bg-top), var(--filter-bg));
+  box-shadow: inset 0 -1px 0 rgba(3, 78, 162, .06);
 }
 
+.toolbar label { color: var(--filter-ink); }
+
+/* Controls inside the filter bar carry the light blue through rather than
+   sitting on it as plain white boxes. */
+.toolbar input[type="search"],
+.toolbar select {
+  background-color: var(--filter-field);
+  border-color: #9ec6ea;
+  color: var(--filter-ink);
+}
+.toolbar input[type="search"]:hover,
+.toolbar select:hover { border-color: var(--kac-blue-lift); background-color: #fff; }
+.toolbar input[type="search"]::placeholder { color: #7ba2c7; }
+
 .toolbar .field-search { flex: 1 1 260px; min-width: 0; }
-.toolbar .field-cat    { flex: 0 1 200px; }
+.toolbar .field-cat    { flex: 0 1 210px; min-width: 0; }
 
 .count-note {
-  margin-left: auto;
-  align-self: center;
-  font-size: 12.5px;
-  color: var(--ink-muted);
+  margin: 0 0 0 auto;
+  align-self: flex-end;
+  padding-bottom: 9px;
+  font-size: 12.5px; font-weight: 700;
+  color: var(--filter-ink);
   font-variant-numeric: tabular-nums;
 }
 
@@ -211,7 +337,7 @@ th[tabindex]:focus-visible {
    ========================================================================= */
 label {
   display: block;
-  font-size: 12px; font-weight: 600;
+  font-size: 12px; font-weight: 700;
   color: var(--ink-muted);
   margin-bottom: 5px;
 }
@@ -220,27 +346,30 @@ input[type="text"], input[type="search"], input[type="number"], select {
   width: 100%;
   font: inherit;
   color: var(--ink);
-  background: #fff;
-  border: 1px solid #d3dae4;
-  border-radius: 8px;
+  background-color: #fff;
+  border: 1px solid #c8d3e0;
+  border-radius: 9px;
   padding: 8px 11px;
+  transition: border-color .14s ease, box-shadow .14s ease, background-color .14s ease;
 }
 
 input::placeholder { color: var(--ink-faint); }
 
 select {
   appearance: none;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8'><path d='M1 1l5 5 5-5' fill='none' stroke='%235c6a7d' stroke-width='1.8' stroke-linecap='round'/></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8'><path d='M1 1l5 5 5-5' fill='none' stroke='%23034ea2' stroke-width='2' stroke-linecap='round'/></svg>");
   background-repeat: no-repeat;
   background-position: right 11px center;
   padding-right: 30px;
 }
 
-input:hover, select:hover { border-color: #b9c4d2; }
+input:hover, select:hover { border-color: var(--kac-blue-lift); }
+
+input:focus, select:focus { box-shadow: 0 0 0 3px rgba(3, 78, 162, .13); }
 
 input[aria-invalid="true"], select[aria-invalid="true"] {
   border-color: var(--bad-dot);
-  background: #fffafa;
+  background-color: #fffafa;
 }
 
 /* ============================================================================
@@ -249,6 +378,7 @@ input[aria-invalid="true"], select[aria-invalid="true"] {
 .table-wrap {
   max-height: 620px;
   overflow: auto;                 /* horizontal scroll lives here, not on <body> */
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -261,13 +391,13 @@ table {
 
 thead th {
   position: sticky; top: 0; z-index: 2;
-  background: #f7f9fc;
-  border-bottom: 1px solid var(--line);
+  background: #eef5fd;
+  border-bottom: 1px solid var(--filter-line);
   padding: 0;
   text-align: left;
-  font-size: 11.5px; font-weight: 650;
-  letter-spacing: .04em; text-transform: uppercase;
-  color: var(--ink-muted);
+  font-size: 11.5px; font-weight: 700;
+  letter-spacing: .05em; text-transform: uppercase;
+  color: var(--filter-ink);
   white-space: nowrap;
 }
 
@@ -278,10 +408,10 @@ thead th .th-inner {
   user-select: none;
 }
 
-thead th:hover .th-inner { color: var(--accent); }
-thead th[aria-sort]:not([aria-sort="none"]) { color: var(--accent); }
+thead th:hover .th-inner { color: var(--kac-blue); background: #e2eefb; }
+thead th[aria-sort]:not([aria-sort="none"]) { color: var(--kac-blue); background: #e2eefb; }
 thead th.no-sort .th-inner { cursor: default; }
-thead th.no-sort:hover .th-inner { color: var(--ink-muted); }
+thead th.no-sort:hover .th-inner { color: var(--filter-ink); background: none; }
 
 .arrow {
   font-size: 9px;
@@ -294,7 +424,7 @@ th[aria-sort="descending"] .arrow { opacity: 1; }
 
 tbody td {
   padding: 10px 12px;
-  border-bottom: 1px solid #eef1f6;
+  border-bottom: 1px solid #eaeff6;
   vertical-align: middle;
   white-space: nowrap;
 }
@@ -303,15 +433,18 @@ tbody tr:nth-child(even)          { background: var(--zebra); }
 tbody tr:hover                    { background: var(--hover); }
 tbody tr:last-child td            { border-bottom: 0; }
 
-.cell-sku     { font-weight: 620; color: var(--accent-dark); font-variant-numeric: tabular-nums; }
-.cell-name    { white-space: normal; min-width: 190px; font-weight: 550; }
+.cell-sku {
+  font-weight: 700; color: var(--kac-blue);
+  font-variant-numeric: tabular-nums;
+}
+.cell-name    { white-space: normal; min-width: 190px; font-weight: 700; overflow-wrap: break-word; }
 .cell-num     { text-align: right; font-variant-numeric: tabular-nums; }
 .cell-muted   { color: var(--ink-muted); }
 .cell-actions { text-align: right; }
 
 /* Brief flash on a newly added row. */
 @keyframes flash-new {
-  from { background: #dbeafe; }
+  from { background: #c9e0fa; }
   to   { background: transparent; }
 }
 tbody tr.row-new { animation: flash-new 1.8s ease-out; }
@@ -319,9 +452,9 @@ tbody tr.row-new { animation: flash-new 1.8s ease-out; }
 /* Status pill */
 .pill {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 3px 10px 3px 8px;
+  padding: 3px 11px 3px 9px;
   border-radius: 999px;
-  font-size: 12px; font-weight: 620;
+  font-size: 12px; font-weight: 700;
   white-space: nowrap;
 }
 .pill::before {
@@ -346,31 +479,33 @@ tbody tr.row-new { animation: flash-new 1.8s ease-out; }
    9. BUTTONS
    ========================================================================= */
 .btn {
-  font: inherit; font-weight: 600;
-  border-radius: 8px;
+  font: inherit; font-weight: 700;
+  border-radius: 9px;
   border: 1px solid transparent;
   padding: 9px 16px;
   cursor: pointer;
+  transition: background-color .14s ease, border-color .14s ease, color .14s ease;
 }
 
-.btn-primary { background: var(--accent); color: #fff; }
-.btn-primary:hover { background: var(--accent-dark); }
+.btn-primary { background: var(--kac-blue); color: #fff; }
+.btn-primary:hover { background: var(--kac-blue-deep); }
 
 .btn-ghost {
-  background: #fff; color: var(--ink-muted); border-color: #d3dae4;
+  background: #fff; color: var(--ink-muted); border-color: #c8d3e0;
 }
-.btn-ghost:hover { background: #f6f8fb; color: var(--ink); }
+.btn-ghost:hover { background: var(--accent-soft); color: var(--kac-blue-deep); border-color: var(--kac-blue-lift); }
 
 .btn-delete {
-  font: inherit; font-size: 12.5px; font-weight: 600;
+  font: inherit; font-size: 12.5px; font-weight: 700;
   color: var(--bad-fg);
   background: #fff;
-  border: 1px solid #f0cfcf;
-  border-radius: 7px;
+  border: 1px solid #eecaca;
+  border-radius: 8px;
   padding: 4px 11px;
   cursor: pointer;
+  transition: background-color .14s ease, border-color .14s ease;
 }
-.btn-delete:hover { background: var(--bad-bg); border-color: #e6b4b4; }
+.btn-delete:hover { background: var(--bad-bg); border-color: #e0adad; }
 
 /* ============================================================================
    10. ADD RECORD FORM
@@ -412,21 +547,43 @@ tbody tr.row-new { animation: flash-new 1.8s ease-out; }
 /* ============================================================================
    11. RESPONSIVE
    ========================================================================= */
+@media (max-width: 1100px) {
+  .layout { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+}
+
 @media (max-width: 900px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
+  .card-form { position: static; }
   .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .wrap { padding: 0 14px; }
-  .count-note { margin-left: 0; width: 100%; }
+  .count-note { margin-left: 0; width: 100%; align-self: flex-start; padding-bottom: 0; }
+  .brand-divider { display: none; }
 }
 
 @media (max-width: 520px) {
   .summary { grid-template-columns: minmax(0, 1fr); }
   .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .topbar::before, .topbar::after { display: none; }
+}
+
+/* ============================================================================
+   12. REDUCED MOTION
+   ========================================================================= */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+  /* Keep the new-row cue as a static tint rather than a fade. */
+  tbody tr.row-new { background: #c9e0fa; }
 }
 </style>
 </head>
 
 <body>
+
+<a class="skip-link" href="#tableHeading">Skip to inventory records</a>
 
 <!-- ==========================================================================
      HEADER BAR
@@ -434,9 +591,13 @@ tbody tr.row-new { animation: flash-new 1.8s ease-out; }
 <header class="topbar">
   <div class="wrap topbar-inner">
     <div class="brand">
-      <div class="brand-mark" aria-hidden="true">&#128230;</div>
+      <img class="brand-logo" width="350" height="126"
+           alt="Kacific Broadband Satellites"
+           src="data:image/png;base64,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">
+      <div class="brand-divider" aria-hidden="true"></div>
       <div>
-        <h1>LogiTrack Inventory</h1>
+        <span class="brand-eyebrow">Logistics</span>
+        <h1 translate="no">LogiTrack Inventory</h1>
         <p class="tagline">Warehouse stock control &middot; Southeast Asia distribution network</p>
       </div>
     </div>
@@ -471,61 +632,9 @@ tbody tr.row-new { animation: flash-new 1.8s ease-out; }
   <main class="layout">
 
     <!-- ======================================================================
-         INVENTORY TABLE
+         ADD RECORD FORM  (left column)
          =================================================================== -->
-    <section class="card" aria-labelledby="tableHeading">
-      <div class="card-head">
-        <h2 id="tableHeading">Inventory Records</h2>
-        <p>Click any column heading to sort. Status is derived from quantity against reorder level.</p>
-      </div>
-
-      <div class="toolbar">
-        <div class="field-search">
-          <label for="searchInput">Search</label>
-          <input type="search" id="searchInput" placeholder="SKU, product name or supplier&hellip;"
-                 autocomplete="off">
-        </div>
-        <div class="field-cat">
-          <label for="categoryFilter">Category</label>
-          <select id="categoryFilter">
-            <option value="">All categories</option>
-          </select>
-        </div>
-        <p class="count-note" id="countNote"></p>
-      </div>
-
-      <div class="table-wrap">
-        <table id="inventoryTable">
-          <caption class="sr-only">Warehouse inventory records, sortable and filterable</caption>
-          <thead>
-            <tr id="tableHeadRow">
-              <th data-key="sku"       aria-sort="ascending" tabindex="0" scope="col"><span class="th-inner">SKU <span class="arrow">&#9650;</span></span></th>
-              <th data-key="name"      aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Product Name <span class="arrow">&#9650;</span></span></th>
-              <th data-key="category"  aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Category <span class="arrow">&#9650;</span></span></th>
-              <th data-key="warehouse" aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Warehouse <span class="arrow">&#9650;</span></span></th>
-              <th data-key="qty"       aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Quantity <span class="arrow">&#9650;</span></span></th>
-              <th data-key="reorder"   aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Reorder Level <span class="arrow">&#9650;</span></span></th>
-              <th data-key="cost"      aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Unit Cost (USD) <span class="arrow">&#9650;</span></span></th>
-              <th data-key="supplier"  aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Supplier <span class="arrow">&#9650;</span></span></th>
-              <th data-key="status"    aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Status <span class="arrow">&#9650;</span></span></th>
-              <th data-key="updated"   aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Last Updated <span class="arrow">&#9650;</span></span></th>
-              <th class="no-sort" scope="col"><span class="th-inner">Actions</span></th>
-            </tr>
-          </thead>
-          <tbody id="inventoryBody"></tbody>
-        </table>
-
-        <div class="empty-state" id="emptyState">
-          <strong>No records match</strong>
-          Try a different search term or clear the category filter.
-        </div>
-      </div>
-    </section>
-
-    <!-- ======================================================================
-         ADD RECORD FORM
-         =================================================================== -->
-    <section class="card" aria-labelledby="formHeading">
+    <section class="card card-form" aria-labelledby="formHeading">
       <div class="card-head">
         <h2 id="formHeading">Add Inventory Record</h2>
         <p>Fields marked <span class="req">*</span> are required.</p>
@@ -534,7 +643,7 @@ tbody tr.row-new { animation: flash-new 1.8s ease-out; }
       <form id="addForm" class="form-body" novalidate>
         <div class="form-row">
           <label for="f-sku">SKU <span class="req">*</span></label>
-          <input type="text" id="f-sku" name="sku" placeholder="e.g. RM-4120"
+          <input type="text" id="f-sku" name="sku" placeholder="e.g. RM-4120" spellcheck="false"
                  autocomplete="off" aria-describedby="err-sku">
           <p class="error" id="err-sku"></p>
         </div>
@@ -600,6 +709,58 @@ tbody tr.row-new { animation: flash-new 1.8s ease-out; }
           Status and Last Updated are calculated automatically when the record is saved.
         </p>
       </form>
+    </section>
+
+    <!-- ======================================================================
+         INVENTORY RECORDS  (right column)
+         =================================================================== -->
+    <section class="card" aria-labelledby="tableHeading">
+      <div class="card-head">
+        <h2 id="tableHeading" tabindex="-1">Inventory Records</h2>
+        <p>Click any column heading to sort. Status is derived from quantity against reorder level.</p>
+      </div>
+
+      <div class="toolbar">
+        <div class="field-search">
+          <label for="searchInput">Search</label>
+          <input type="search" id="searchInput" placeholder="SKU, product name or supplier&hellip;"
+                 autocomplete="off">
+        </div>
+        <div class="field-cat">
+          <label for="categoryFilter">Category</label>
+          <select id="categoryFilter">
+            <option value="">All categories</option>
+          </select>
+        </div>
+        <p class="count-note" id="countNote"></p>
+      </div>
+
+      <div class="table-wrap">
+        <table id="inventoryTable">
+          <caption class="sr-only">Warehouse inventory records, sortable and filterable</caption>
+          <thead>
+            <tr id="tableHeadRow">
+              <th data-key="sku"       aria-sort="ascending" tabindex="0" scope="col"><span class="th-inner">SKU <span class="arrow">&#9650;</span></span></th>
+              <th data-key="name"      aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Product Name <span class="arrow">&#9650;</span></span></th>
+              <th data-key="category"  aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Category <span class="arrow">&#9650;</span></span></th>
+              <th data-key="warehouse" aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Warehouse <span class="arrow">&#9650;</span></span></th>
+              <th data-key="qty"       aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Quantity <span class="arrow">&#9650;</span></span></th>
+              <th data-key="reorder"   aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Reorder Level <span class="arrow">&#9650;</span></span></th>
+              <th data-key="cost"      aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Unit Cost (USD) <span class="arrow">&#9650;</span></span></th>
+              <th data-key="supplier"  aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Supplier <span class="arrow">&#9650;</span></span></th>
+              <th data-key="status"    aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Status <span class="arrow">&#9650;</span></span></th>
+              <th data-key="updated"   aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Last Updated <span class="arrow">&#9650;</span></span></th>
+              <th class="no-sort" scope="col"><span class="th-inner">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="inventoryBody"></tbody>
+        </table>
+
+        <div class="empty-state" id="emptyState">
+          <strong>No records match</strong>
+          Try a different search term or clear the category filter.
+        </div>
+      </div>
     </section>
 
   </main>

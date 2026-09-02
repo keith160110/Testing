@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 LogiTrack Inventory — a warehouse stock dashboard for an operations coordinator, living entirely
 in [index.html](index.html). Markup, CSS and JavaScript are all inline in that one file; there is
-no second source file, no `package.json`, and no git repository.
+no second source file and no `package.json`.
 
 ## Hard constraints
 
@@ -65,6 +65,33 @@ correctly.
 
 The `CATEGORIES` and `WAREHOUSES` constants feed both the table's filter dropdown and the form's
 selects via `populateSelects()` — add an option there, not in the HTML.
+
+## Visual design
+
+The page carries **Kacific** branding. The two brand colours are sampled straight from the logo —
+`--kac-blue: #034ea2` (wordmark) and `--kac-grey: #a7a9ac` (swoosh) — and every other blue in the
+palette derives from them. Do not introduce a blue that is not a token.
+
+- **The logo is an inline `data:image/png;base64` URI** on `.brand-logo`. That is deliberate: it is
+  the only way to show the mark while the page still makes zero network requests. The source base64
+  lives in `logo-kacific.b64` at the repo root — regenerate the `src` from that file rather than
+  pasting a new blob by hand. The mark is drawn in brand blue, so it always needs the white chip
+  behind it and must never sit directly on the blue header.
+- **The body font is a Comic face** (`--font`), resolved from locally installed fonts only
+  (`Comic Sans MS` → `Comic Neue` → `Chalkboard SE` → `cursive`). No webfont, by constraint. Comic
+  faces run wide and loose, which is why headings carry negative letter-spacing and every numeric
+  cell keeps `font-variant-numeric: tabular-nums` — drop those and the table columns stop aligning.
+- **The filter bar (`.toolbar`) is light blue.** Its search and select carry that tint through
+  (`--filter-field`) instead of sitting on it as white boxes. The `--filter-*` tokens exist only for
+  this strip and the table head; they are not general-purpose.
+- **Layout order is form-left, records-right.** The form `<section>` comes first in the DOM so
+  keyboard focus order matches the visual order both on desktop and once the grid stacks below
+  900px. If you swap the columns visually, move the DOM nodes — do not reach for CSS `order`.
+- `.card-form` is `position: sticky` on desktop and reset to `static` in the 900px query.
+- CSS section 12 is `prefers-reduced-motion`; there, the new-row flash degrades to a static tint.
+
+The header's cropped ellipses (`.topbar::before` / `::after`) echo the swoosh in the logo. They are
+the one decorative flourish on the page — everything else stays plain so the data reads first.
 
 ## Running and checking changes
 

@@ -27,3 +27,6 @@ desktop.ini
 *.log
 scratch/
 tmp/
+
+# Playwright MCP scratch output (traces, snapshots, console logs).
+.playwright-mcp/
