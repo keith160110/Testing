@@ -5,7 +5,7 @@ step, no server, no dependencies — open it and it works.
 
 **Live demo:** https://keith160110.github.io/Testing/
 
-![The LogiTrack Inventory dashboard: a summary strip of warehouse totals above a sortable, searchable inventory table, with the add-record form beside it.](docs/screenshot.png)
+![The LogiTrack Inventory dashboard: a summary strip of warehouse totals across the top, the add-record form in the left column, and a sortable, searchable inventory table filling the right column beneath a light-blue filter bar.](docs/screenshot.png)
 
 ## Running it
 
@@ -33,10 +33,36 @@ links, no web fonts, no analytics.
 - **Responsive layout** — below 900px the panels stack and the table scrolls inside its own card
   instead of widening the page.
 
+## Design
+
+The interface is laid out with the add-record form in the left column and the inventory records
+filling the wider right column, under a light-blue filter bar carrying the search box and category
+dropdown. The form is sticky on desktop so it stays in reach while the records scroll past it, and
+it comes first in the markup so keyboard focus order matches what you see — both across the two
+columns and once they stack on narrow screens.
+
+Type is set in a Comic face, resolved from locally installed fonts only (`Comic Sans MS`, then
+`Comic Neue` or `Chalkboard SE`, then generic `cursive`). No web font is downloaded. Because comic
+faces run wide, headings carry negative letter-spacing and every numeric cell uses tabular figures
+so the columns still line up.
+
+The palette is built from two colours sampled directly from the logo — `#034ea2` and `#a7a9ac` —
+with every other blue derived from them, and the header's cropped ellipses echo the swoosh in the
+mark.
+
+> **Note on branding.** This is a personal portfolio demo. It is styled with Kacific Broadband
+> Satellites branding but is not an official Kacific product, is not affiliated with or endorsed by
+> the company, and contains none of its data. All inventory records are fictional (see below).
+
 ## Accessibility
 
 - All feedback goes through a single `aria-live="polite"` status region. There are no
   `alert()`, `confirm()` or `prompt()` dialogs anywhere in the app.
+- A skip link jumps straight to the inventory records for keyboard and screen-reader users.
+- Every interactive element has a visible `:focus-visible` ring, and the row Delete buttons carry
+  an `aria-label` naming the exact record they remove.
+- `prefers-reduced-motion` is honoured — the new-row highlight degrades from an animated flash to a
+  static tint.
 - Validation errors are rendered inline next to the field that caused them and are associated
   with their input, so a screen reader announces the reason rather than a generic failure.
 - Sortable column headers expose their current sort direction.
