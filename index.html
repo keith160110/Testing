@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LogiTrack Inventory</title>
+
+<style>
+/* ============================================================================
+   1. DESIGN TOKENS
+   ========================================================================= */
+:root {
+  --accent:        #1e40af;   /* deep blue */
+  --accent-dark:   #172f7d;
+  --accent-soft:   #eaf0fd;
+  --ink:           #1b2430;
+  --ink-muted:     #5c6a7d;
+  --ink-faint:     #8794a6;
+  --page:          #f4f6f9;
+  --card:          #ffffff;
+  --line:          #e3e8ef;
+  --zebra:         #fafbfd;
+  --hover:         #f0f5ff;
+
+  --ok-bg:   #e7f6ec;  --ok-fg:   #17703c;  --ok-dot:   #1f9d55;
+  --warn-bg: #fdf2dc;  --warn-fg: #8a5a05;  --warn-dot: #d99408;
+  --bad-bg:  #fdeaea;  --bad-fg:  #9b1c1c;  --bad-dot:  #dc2626;
+
+  --radius:  10px;
+  --shadow:  0 1px 2px rgba(16, 24, 40, .05), 0 4px 14px rgba(16, 24, 40, .06);
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+          Arial, "Noto Sans", sans-serif;
+}
+
+/* ============================================================================
+   2. BASE
+   ========================================================================= */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
+
+/* Consistent, visible focus ring on every interactive element. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+th[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Screen-reader-only helper for labels the layout does not show. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+.wrap { max-width: 1500px; margin: 0 auto; padding: 0 24px; }
+
+/* ============================================================================
+   3. HEADER + SUMMARY STRIP
+   ========================================================================= */
+.topbar {
+  background: linear-gradient(105deg, var(--accent-dark), var(--accent));
+  color: #fff;
+  padding: 22px 0 20px;
+}
+
+.topbar-inner {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px;
+}
+
+.brand { display: flex; align-items: center; gap: 12px; }
+
+.brand-mark {
+  width: 38px; height: 38px; flex: none;
+  display: grid; place-items: center;
+  background: rgba(255, 255, 255, .16);
+  border: 1px solid rgba(255, 255, 255, .28);
+  border-radius: 9px;
+  font-size: 18px;
+}
+
+.topbar h1 { font-size: 20px; }
+
+.tagline {
+  margin: 1px 0 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, .78);
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: -26px auto 22px;
+}
+
+.stat {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px 16px;
+}
+
+.stat-label {
+  font-size: 11px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-faint);
+}
+
+.stat-value {
+  font-size: 24px; font-weight: 680; letter-spacing: -.02em;
+  margin-top: 3px; font-variant-numeric: tabular-nums;
+}
+
+.stat.is-alert .stat-value { color: var(--bad-dot); }
+
+/* ============================================================================
+   4. LIVE MESSAGE (aria-live confirmations)
+   ========================================================================= */
+.live-message {
+  min-height: 0;
+  margin: 0 0 16px;
+  transition: opacity .2s ease;
+}
+
+.live-message:empty { display: none; }
+
+.live-message > span {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--ok-bg); color: var(--ok-fg);
+  border: 1px solid #c6e7d2;
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-size: 13px; font-weight: 550;
+}
+
+.live-message > span.is-removed {
+  background: var(--accent-soft); color: var(--accent-dark);
+  border-color: #cddcf9;
+}
+
+/* ============================================================================
+   5. LAYOUT + CARDS
+   ========================================================================= */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2.4fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+  padding-bottom: 40px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;         /* keeps the sticky header inside rounded corners */
+}
+
+.card-head {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.card-head h2 { font-size: 15px; }
+
+.card-head p {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: var(--ink-muted);
+}
+
+/* ============================================================================
+   6. TOOLBAR (search + category filter)
+   ========================================================================= */
+.toolbar {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  background: #fcfdff;
+}
+
+.toolbar .field-search { flex: 1 1 260px; min-width: 0; }
+.toolbar .field-cat    { flex: 0 1 200px; }
+
+.count-note {
+  margin-left: auto;
+  align-self: center;
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================================
+   7. FORM CONTROLS (shared by toolbar + add form)
+   ========================================================================= */
+label {
+  display: block;
+  font-size: 12px; font-weight: 600;
+  color: var(--ink-muted);
+  margin-bottom: 5px;
+}
+
+input[type="text"], input[type="search"], input[type="number"], select {
+  width: 100%;
+  font: inherit;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid #d3dae4;
+  border-radius: 8px;
+  padding: 8px 11px;
+}
+
+input::placeholder { color: var(--ink-faint); }
+
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8'><path d='M1 1l5 5 5-5' fill='none' stroke='%235c6a7d' stroke-width='1.8' stroke-linecap='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  padding-right: 30px;
+}
+
+input:hover, select:hover { border-color: #b9c4d2; }
+
+input[aria-invalid="true"], select[aria-invalid="true"] {
+  border-color: var(--bad-dot);
+  background: #fffafa;
+}
+
+/* ============================================================================
+   8. TABLE
+   ========================================================================= */
+.table-wrap {
+  max-height: 620px;
+  overflow: auto;                 /* horizontal scroll lives here, not on <body> */
+  -webkit-overflow-scrolling: touch;
+}
+
+table {
+  width: 100%;
+  min-width: 1080px;              /* forces the card to scroll, not squash */
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+thead th {
+  position: sticky; top: 0; z-index: 2;
+  background: #f7f9fc;
+  border-bottom: 1px solid var(--line);
+  padding: 0;
+  text-align: left;
+  font-size: 11.5px; font-weight: 650;
+  letter-spacing: .04em; text-transform: uppercase;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+thead th .th-inner {
+  display: flex; align-items: center; gap: 5px;
+  padding: 11px 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+thead th:hover .th-inner { color: var(--accent); }
+thead th[aria-sort]:not([aria-sort="none"]) { color: var(--accent); }
+thead th.no-sort .th-inner { cursor: default; }
+thead th.no-sort:hover .th-inner { color: var(--ink-muted); }
+
+.arrow {
+  font-size: 9px;
+  line-height: 1;
+  opacity: 0;                     /* reserve the space so headers never shift */
+}
+
+th[aria-sort="ascending"]  .arrow,
+th[aria-sort="descending"] .arrow { opacity: 1; }
+
+tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #eef1f6;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+tbody tr:nth-child(even)          { background: var(--zebra); }
+tbody tr:hover                    { background: var(--hover); }
+tbody tr:last-child td            { border-bottom: 0; }
+
+.cell-sku     { font-weight: 620; color: var(--accent-dark); font-variant-numeric: tabular-nums; }
+.cell-name    { white-space: normal; min-width: 190px; font-weight: 550; }
+.cell-num     { text-align: right; font-variant-numeric: tabular-nums; }
+.cell-muted   { color: var(--ink-muted); }
+.cell-actions { text-align: right; }
+
+/* Brief flash on a newly added row. */
+@keyframes flash-new {
+  from { background: #dbeafe; }
+  to   { background: transparent; }
+}
+tbody tr.row-new { animation: flash-new 1.8s ease-out; }
+
+/* Status pill */
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  font-size: 12px; font-weight: 620;
+  white-space: nowrap;
+}
+.pill::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; opacity: .85;
+}
+.pill.in   { background: var(--ok-bg);   color: var(--ok-fg); }
+.pill.low  { background: var(--warn-bg); color: var(--warn-fg); }
+.pill.out  { background: var(--bad-bg);  color: var(--bad-fg); }
+
+/* Empty state */
+.empty-state {
+  display: none;
+  padding: 44px 18px;
+  text-align: center;
+  color: var(--ink-muted);
+}
+.empty-state.show { display: block; }
+.empty-state strong { display: block; color: var(--ink); margin-bottom: 3px; }
+
+/* ============================================================================
+   9. BUTTONS
+   ========================================================================= */
+.btn {
+  font: inherit; font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 9px 16px;
+  cursor: pointer;
+}
+
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-dark); }
+
+.btn-ghost {
+  background: #fff; color: var(--ink-muted); border-color: #d3dae4;
+}
+.btn-ghost:hover { background: #f6f8fb; color: var(--ink); }
+
+.btn-delete {
+  font: inherit; font-size: 12.5px; font-weight: 600;
+  color: var(--bad-fg);
+  background: #fff;
+  border: 1px solid #f0cfcf;
+  border-radius: 7px;
+  padding: 4px 11px;
+  cursor: pointer;
+}
+.btn-delete:hover { background: var(--bad-bg); border-color: #e6b4b4; }
+
+/* ============================================================================
+   10. ADD RECORD FORM
+   ========================================================================= */
+.form-body { padding: 16px 18px 18px; }
+
+.form-row { margin-bottom: 13px; }
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 12px;
+}
+
+.error {
+  display: none;
+  margin: 5px 0 0;
+  font-size: 12px;
+  color: var(--bad-fg);
+}
+.error.show { display: block; }
+
+.form-actions {
+  display: flex; gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.form-actions .btn { flex: 1; }
+
+.req { color: var(--bad-dot); font-weight: 700; }
+
+.form-hint {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+/* ============================================================================
+   11. RESPONSIVE
+   ========================================================================= */
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wrap { padding: 0 14px; }
+  .count-note { margin-left: 0; width: 100%; }
+}
+
+@media (max-width: 520px) {
+  .summary { grid-template-columns: minmax(0, 1fr); }
+  .form-grid { grid-template-columns: minmax(0, 1fr); }
+}
+</style>
+</head>
+
+<body>
+
+<!-- ==========================================================================
+     HEADER BAR
+     ======================================================================= -->
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">&#128230;</div>
+      <div>
+        <h1>LogiTrack Inventory</h1>
+        <p class="tagline">Warehouse stock control &middot; Southeast Asia distribution network</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- Live summary strip -->
+  <section class="summary" aria-label="Inventory summary">
+    <div class="stat">
+      <div class="stat-label">Total SKUs</div>
+      <div class="stat-value" id="statSkus">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Total Units in Stock</div>
+      <div class="stat-value" id="statUnits">0</div>
+    </div>
+    <div class="stat is-alert">
+      <div class="stat-label">Below Reorder Level</div>
+      <div class="stat-value" id="statLow">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Warehouses</div>
+      <div class="stat-value" id="statWarehouses">0</div>
+    </div>
+  </section>
+
+  <!-- Confirmation messages (added / deleted) -->
+  <div class="live-message" id="liveMessage" role="status" aria-live="polite"></div>
+
+  <main class="layout">
+
+    <!-- ======================================================================
+         INVENTORY TABLE
+         =================================================================== -->
+    <section class="card" aria-labelledby="tableHeading">
+      <div class="card-head">
+        <h2 id="tableHeading">Inventory Records</h2>
+        <p>Click any column heading to sort. Status is derived from quantity against reorder level.</p>
+      </div>
+
+      <div class="toolbar">
+        <div class="field-search">
+          <label for="searchInput">Search</label>
+          <input type="search" id="searchInput" placeholder="SKU, product name or supplier&hellip;"
+                 autocomplete="off">
+        </div>
+        <div class="field-cat">
+          <label for="categoryFilter">Category</label>
+          <select id="categoryFilter">
+            <option value="">All categories</option>
+          </select>
+        </div>
+        <p class="count-note" id="countNote"></p>
+      </div>
+
+      <div class="table-wrap">
+        <table id="inventoryTable">
+          <caption class="sr-only">Warehouse inventory records, sortable and filterable</caption>
+          <thead>
+            <tr id="tableHeadRow">
+              <th data-key="sku"       aria-sort="ascending" tabindex="0" scope="col"><span class="th-inner">SKU <span class="arrow">&#9650;</span></span></th>
+              <th data-key="name"      aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Product Name <span class="arrow">&#9650;</span></span></th>
+              <th data-key="category"  aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Category <span class="arrow">&#9650;</span></span></th>
+              <th data-key="warehouse" aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Warehouse <span class="arrow">&#9650;</span></span></th>
+              <th data-key="qty"       aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Quantity <span class="arrow">&#9650;</span></span></th>
+              <th data-key="reorder"   aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Reorder Level <span class="arrow">&#9650;</span></span></th>
+              <th data-key="cost"      aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Unit Cost (USD) <span class="arrow">&#9650;</span></span></th>
+              <th data-key="supplier"  aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Supplier <span class="arrow">&#9650;</span></span></th>
+              <th data-key="status"    aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Status <span class="arrow">&#9650;</span></span></th>
+              <th data-key="updated"   aria-sort="none" tabindex="0" scope="col"><span class="th-inner">Last Updated <span class="arrow">&#9650;</span></span></th>
+              <th class="no-sort" scope="col"><span class="th-inner">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="inventoryBody"></tbody>
+        </table>
+
+        <div class="empty-state" id="emptyState">
+          <strong>No records match</strong>
+          Try a different search term or clear the category filter.
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         ADD RECORD FORM
+         =================================================================== -->
+    <section class="card" aria-labelledby="formHeading">
+      <div class="card-head">
+        <h2 id="formHeading">Add Inventory Record</h2>
+        <p>Fields marked <span class="req">*</span> are required.</p>
+      </div>
+
+      <form id="addForm" class="form-body" novalidate>
+        <div class="form-row">
+          <label for="f-sku">SKU <span class="req">*</span></label>
+          <input type="text" id="f-sku" name="sku" placeholder="e.g. RM-4120"
+                 autocomplete="off" aria-describedby="err-sku">
+          <p class="error" id="err-sku"></p>
+        </div>
+
+        <div class="form-row">
+          <label for="f-name">Product Name <span class="req">*</span></label>
+          <input type="text" id="f-name" name="name" placeholder="e.g. Copper Busbar 40mm"
+                 autocomplete="off" aria-describedby="err-name">
+          <p class="error" id="err-name"></p>
+        </div>
+
+        <div class="form-row">
+          <label for="f-category">Category <span class="req">*</span></label>
+          <select id="f-category" name="category" aria-describedby="err-category">
+            <option value="">Select a category</option>
+          </select>
+          <p class="error" id="err-category"></p>
+        </div>
+
+        <div class="form-row">
+          <label for="f-warehouse">Warehouse <span class="req">*</span></label>
+          <select id="f-warehouse" name="warehouse" aria-describedby="err-warehouse">
+            <option value="">Select a warehouse</option>
+          </select>
+          <p class="error" id="err-warehouse"></p>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-row">
+            <label for="f-qty">Quantity <span class="req">*</span></label>
+            <input type="number" id="f-qty" name="qty" min="0" step="1" placeholder="0"
+                   inputmode="numeric" aria-describedby="err-qty">
+            <p class="error" id="err-qty"></p>
+          </div>
+          <div class="form-row">
+            <label for="f-reorder">Reorder Level <span class="req">*</span></label>
+            <input type="number" id="f-reorder" name="reorder" min="0" step="1" placeholder="0"
+                   inputmode="numeric" aria-describedby="err-reorder">
+            <p class="error" id="err-reorder"></p>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label for="f-cost">Unit Cost (USD) <span class="req">*</span></label>
+          <input type="number" id="f-cost" name="cost" min="0" step="0.01" placeholder="0.00"
+                 inputmode="decimal" aria-describedby="err-cost">
+          <p class="error" id="err-cost"></p>
+        </div>
+
+        <div class="form-row">
+          <label for="f-supplier">Supplier <span class="req">*</span></label>
+          <input type="text" id="f-supplier" name="supplier" placeholder="e.g. Sumitomo Metals Asia"
+                 autocomplete="off" aria-describedby="err-supplier">
+          <p class="error" id="err-supplier"></p>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Add Record</button>
+          <button type="button" class="btn btn-ghost" id="clearBtn">Clear</button>
+        </div>
+
+        <p class="form-hint">
+          Status and Last Updated are calculated automatically when the record is saved.
+        </p>
+      </form>
+    </section>
+
+  </main>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================================
+   SECTION 1 — STATE
+   The `inventory` array is the single source of truth. Every render is derived
+   from it; nothing is read back out of the DOM.
+   ========================================================================= */
+
+var CATEGORIES = ["Raw Materials", "Packaging", "Electronics", "Finished Goods", "Spare Parts"];
+var WAREHOUSES = ["Singapore Hub", "Johor DC", "Jakarta Depot", "Bangkok Cross-dock"];
+
+var inventory = [
+  { id: 1,  sku: "RM-1042", name: "Aluminium Sheet 2mm x 1220mm",   category: "Raw Materials",  warehouse: "Singapore Hub",      qty: 4820,  reorder: 1200, cost: 18.45,  supplier: "Sumitomo Metals Asia",      updated: "2026-08-28" },
+  { id: 2,  sku: "RM-2087", name: "Polypropylene Resin Pellets",    category: "Raw Materials",  warehouse: "Johor DC",           qty: 950,   reorder: 1000, cost: 2.35,   supplier: "Lotte Chemical Titan",      updated: "2026-08-30" },
+  { id: 3,  sku: "RM-2210", name: "Stainless Fastener M8 x 40mm",   category: "Raw Materials",  warehouse: "Jakarta Depot",      qty: 26400, reorder: 8000, cost: 0.34,   supplier: "PT Baja Presisi Nusantara", updated: "2026-08-19" },
+  { id: 4,  sku: "PK-3310", name: "Corrugated Carton 400x300x250",  category: "Packaging",      warehouse: "Johor DC",           qty: 12500, reorder: 4000, cost: 0.62,   supplier: "Pratt Packaging SEA",       updated: "2026-08-26" },
+  { id: 5,  sku: "PK-3355", name: "Stretch Wrap Film 500mm Clear",  category: "Packaging",      warehouse: "Jakarta Depot",      qty: 0,     reorder: 300,  cost: 14.90,  supplier: "PT Indo Wrap Solusi",       updated: "2026-08-31" },
+  { id: 6,  sku: "PK-3402", name: "Thermal Label Roll 100x150mm",   category: "Packaging",      warehouse: "Bangkok Cross-dock", qty: 2400,  reorder: 2400, cost: 7.80,   supplier: "Zebra Supplies Thailand",   updated: "2026-09-01" },
+  { id: 7,  sku: "EL-5001", name: "PCB Controller Board v3",        category: "Electronics",    warehouse: "Singapore Hub",      qty: 640,   reorder: 250,  cost: 42.75,  supplier: "Shenzhen Vertex Electronics", updated: "2026-08-22" },
+  { id: 8,  sku: "EL-5120", name: "Lithium Cell 18650 3200mAh",     category: "Electronics",    warehouse: "Bangkok Cross-dock", qty: 8300,  reorder: 2500, cost: 4.10,   supplier: "EVE Energy Trading",        updated: "2026-08-29" },
+  { id: 9,  sku: "EL-5233", name: "Wiring Harness Assembly A2",     category: "Electronics",    warehouse: "Johor DC",           qty: 180,   reorder: 200,  cost: 27.60,  supplier: "Delta Interconnect Malaysia", updated: "2026-08-27" },
+  { id: 10, sku: "FG-7005", name: "Smart Water Meter SW-200",       category: "Finished Goods", warehouse: "Singapore Hub",      qty: 2140,  reorder: 800,  cost: 96.50,  supplier: "Aquaflow Manufacturing",    updated: "2026-08-25" },
+  { id: 11, sku: "FG-7042", name: "Solar Inverter 5kW Hybrid",      category: "Finished Goods", warehouse: "Jakarta Depot",      qty: 310,   reorder: 150,  cost: 445.00, supplier: "PT Surya Daya Nusantara",   updated: "2026-08-18" },
+  { id: 12, sku: "FG-7188", name: "LED Panel Light 36W 600x600",    category: "Finished Goods", warehouse: "Bangkok Cross-dock", qty: 5600,  reorder: 1500, cost: 11.25,  supplier: "Siam Lighting Industries",  updated: "2026-08-30" },
+  { id: 13, sku: "SP-9010", name: "Conveyor Belt Roller 80mm",      category: "Spare Parts",    warehouse: "Johor DC",           qty: 74,    reorder: 90,   cost: 33.40,  supplier: "Interoll Asia Pacific",     updated: "2026-08-24" },
+  { id: 14, sku: "SP-9044", name: "Hydraulic Seal Kit HK-12",       category: "Spare Parts",    warehouse: "Singapore Hub",      qty: 420,   reorder: 120,  cost: 58.90,  supplier: "Parker Hydraulics SEA",     updated: "2026-08-21" },
+  { id: 15, sku: "SP-9077", name: "Forklift Brake Pad Set",         category: "Spare Parts",    warehouse: "Bangkok Cross-dock", qty: 0,     reorder: 40,   cost: 76.20,  supplier: "Toyota Material Handling TH", updated: "2026-09-01" }
+];
+
+/* Next id to hand out — kept ahead of anything already in the seed data. */
+var nextId = 16;
+
+/* View-only state: what the user has typed, picked and sorted by. */
+var uiState = {
+  search:   "",
+  category: "",
+  sortKey:  "sku",
+  sortDir:  "asc"
+};
+
+/* Cached element references. */
+var el = {
+  body:        document.getElementById("inventoryBody"),
+  headRow:     document.getElementById("tableHeadRow"),
+  emptyState:  document.getElementById("emptyState"),
+  search:      document.getElementById("searchInput"),
+  catFilter:   document.getElementById("categoryFilter"),
+  countNote:   document.getElementById("countNote"),
+  message:     document.getElementById("liveMessage"),
+  form:        document.getElementById("addForm"),
+  clearBtn:    document.getElementById("clearBtn"),
+  formCat:     document.getElementById("f-category"),
+  formWh:      document.getElementById("f-warehouse"),
+  statSkus:    document.getElementById("statSkus"),
+  statUnits:   document.getElementById("statUnits"),
+  statLow:     document.getElementById("statLow"),
+  statWh:      document.getElementById("statWarehouses")
+};
+
+/* Timers so a new message/flash replaces the previous one cleanly. */
+var messageTimer = null;
+var flashTimer = null;
+
+/* ============================================================================
+   SECTION 2 — DERIVATION + FORMATTING HELPERS
+   ========================================================================= */
+
+var moneyFmt = new Intl.NumberFormat("en-US", {
+  style: "currency", currency: "USD",
+  minimumFractionDigits: 2, maximumFractionDigits: 2
+});
+
+var qtyFmt = new Intl.NumberFormat("en-US");
+
+/* Status is always derived from the record — never stored, never entered. */
+function getStatus(record) {
+  if (record.qty === 0) return "out";
+  if (record.qty <= record.reorder) return "low";
+  return "in";
+}
+
+var STATUS_LABEL = { in: "In Stock", low: "Low Stock", out: "Out of Stock" };
+
+/* Sort rank for the Status column: most urgent first when ascending. */
+var STATUS_RANK = { out: 0, low: 1, in: 2 };
+
+function todayISO() {
+  var d = new Date();
+  var m = String(d.getMonth() + 1).padStart(2, "0");
+  var day = String(d.getDate()).padStart(2, "0");
+  return d.getFullYear() + "-" + m + "-" + day;
+}
+
+/* User-entered text goes into innerHTML, so it must be escaped first. */
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/* Does this record survive the current search box + category filter? */
+function matchesFilters(record) {
+  if (uiState.category && record.category !== uiState.category) return false;
+
+  var term = uiState.search.trim().toLowerCase();
+  if (!term) return true;
+
+  return record.sku.toLowerCase().indexOf(term) !== -1 ||
+         record.name.toLowerCase().indexOf(term) !== -1 ||
+         record.supplier.toLowerCase().indexOf(term) !== -1;
+}
+
+/* The filtered + sorted view the table renders from. */
+function getVisibleRecords() {
+  var rows = inventory.filter(matchesFilters);
+  var key = uiState.sortKey;
+  var dir = uiState.sortDir === "asc" ? 1 : -1;
+
+  rows.sort(function (a, b) {
+    var av, bv;
+
+    if (key === "status") {
+      av = STATUS_RANK[getStatus(a)];
+      bv = STATUS_RANK[getStatus(b)];
+    } else {
+      av = a[key];
+      bv = b[key];
+    }
+
+    if (typeof av === "number" && typeof bv === "number") {
+      return (av - bv) * dir;
+    }
+    // Dates are ISO strings, so plain string comparison sorts them correctly.
+    return String(av).localeCompare(String(bv), "en", { sensitivity: "base" }) * dir;
+  });
+
+  return rows;
+}
+
+/* ============================================================================
+   SECTION 3 — RENDER FUNCTIONS
+   Both read from `inventory`; call renderAll() after every mutation.
+   ========================================================================= */
+
+function renderTable() {
+  var rows = getVisibleRecords();
+
+  el.body.innerHTML = rows.map(function (r) {
+    var status = getStatus(r);
+    return "" +
+      "<tr data-id='" + r.id + "'>" +
+        "<td class='cell-sku'>" + escapeHtml(r.sku) + "</td>" +
+        "<td class='cell-name'>" + escapeHtml(r.name) + "</td>" +
+        "<td class='cell-muted'>" + escapeHtml(r.category) + "</td>" +
+        "<td class='cell-muted'>" + escapeHtml(r.warehouse) + "</td>" +
+        "<td class='cell-num'>" + qtyFmt.format(r.qty) + "</td>" +
+        "<td class='cell-num cell-muted'>" + qtyFmt.format(r.reorder) + "</td>" +
+        "<td class='cell-num'>" + moneyFmt.format(r.cost) + "</td>" +
+        "<td class='cell-muted'>" + escapeHtml(r.supplier) + "</td>" +
+        "<td><span class='pill " + status + "'>" + STATUS_LABEL[status] + "</span></td>" +
+        "<td class='cell-muted'>" + escapeHtml(r.updated) + "</td>" +
+        "<td class='cell-actions'>" +
+          "<button type='button' class='btn-delete' data-id='" + r.id + "' " +
+          "aria-label='Delete " + escapeHtml(r.sku) + " " + escapeHtml(r.name) + "'>Delete</button>" +
+        "</td>" +
+      "</tr>";
+  }).join("");
+
+  // Empty state + row count
+  el.emptyState.classList.toggle("show", rows.length === 0);
+  el.countNote.textContent = rows.length === inventory.length
+    ? "Showing all " + inventory.length + " records"
+    : "Showing " + rows.length + " of " + inventory.length + " records";
+
+  renderSortIndicators();
+}
+
+/* Reflect uiState.sortKey / sortDir in the header arrows and aria-sort. */
+function renderSortIndicators() {
+  var headers = el.headRow.querySelectorAll("th[data-key]");
+  for (var i = 0; i < headers.length; i++) {
+    var th = headers[i];
+    var arrow = th.querySelector(".arrow");
+    if (th.getAttribute("data-key") === uiState.sortKey) {
+      th.setAttribute("aria-sort", uiState.sortDir === "asc" ? "ascending" : "descending");
+      arrow.innerHTML = uiState.sortDir === "asc" ? "&#9650;" : "&#9660;";
+    } else {
+      th.setAttribute("aria-sort", "none");
+    }
+  }
+}
+
+function renderSummary() {
+  var units = 0;
+  var belowReorder = 0;
+  var warehouses = {};
+
+  for (var i = 0; i < inventory.length; i++) {
+    var r = inventory[i];
+    units += r.qty;
+    if (getStatus(r) !== "in") belowReorder++;   // counts Low Stock and Out of Stock
+    warehouses[r.warehouse] = true;
+  }
+
+  el.statSkus.textContent  = qtyFmt.format(inventory.length);
+  el.statUnits.textContent = qtyFmt.format(units);
+  el.statLow.textContent   = qtyFmt.format(belowReorder);
+  el.statWh.textContent    = Object.keys(warehouses).length;
+}
+
+function renderAll() {
+  renderTable();
+  renderSummary();
+}
+
+/* Inline confirmation in the aria-live region — no alert()/confirm() anywhere. */
+function showMessage(text, variant) {
+  el.message.innerHTML = "<span class='" + (variant || "") + "'>" + escapeHtml(text) + "</span>";
+  clearTimeout(messageTimer);
+  messageTimer = setTimeout(function () { el.message.innerHTML = ""; }, 4000);
+}
+
+/* Briefly highlight a row after it is added. */
+function flashRow(id) {
+  var row = el.body.querySelector("tr[data-id='" + id + "']");
+  if (!row) return;
+  row.classList.add("row-new");
+  row.scrollIntoView({ block: "nearest" });
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(function () { row.classList.remove("row-new"); }, 1800);
+}
+
+/* ============================================================================
+   SECTION 4 — VALIDATION
+   ========================================================================= */
+
+function setFieldError(name, message) {
+  var input = document.getElementById("f-" + name);
+  var errorEl = document.getElementById("err-" + name);
+  errorEl.textContent = message || "";
+  errorEl.classList.toggle("show", Boolean(message));
+  if (message) {
+    input.setAttribute("aria-invalid", "true");
+  } else {
+    input.removeAttribute("aria-invalid");
+  }
+}
+
+function clearAllErrors() {
+  ["sku", "name", "category", "warehouse", "qty", "reorder", "cost", "supplier"]
+    .forEach(function (n) { setFieldError(n, ""); });
+}
+
+/* Validates a non-negative number field; returns the parsed value or null. */
+function readNumber(name, label, allowDecimals) {
+  var raw = document.getElementById("f-" + name).value.trim();
+
+  if (raw === "") {
+    setFieldError(name, label + " is required.");
+    return null;
+  }
+
+  var value = Number(raw);
+  if (!isFinite(value)) {
+    setFieldError(name, "Enter a valid number.");
+    return null;
+  }
+  if (value < 0) {
+    setFieldError(name, label + " cannot be negative.");
+    return null;
+  }
+  if (!allowDecimals && !Number.isInteger(value)) {
+    setFieldError(name, label + " must be a whole number.");
+    return null;
+  }
+
+  return allowDecimals ? Math.round(value * 100) / 100 : value;
+}
+
+/* Validates the whole form. Returns a new record, or null if anything failed. */
+function validateForm() {
+  clearAllErrors();
+
+  var sku       = document.getElementById("f-sku").value.trim();
+  var name      = document.getElementById("f-name").value.trim();
+  var category  = el.formCat.value;
+  var warehouse = el.formWh.value;
+  var supplier  = document.getElementById("f-supplier").value.trim();
+
+  if (!sku) {
+    setFieldError("sku", "SKU is required.");
+  } else if (inventory.some(function (r) { return r.sku.toLowerCase() === sku.toLowerCase(); })) {
+    setFieldError("sku", "SKU “" + sku + "” already exists. Enter a unique SKU.");
+  }
+
+  if (!name)      setFieldError("name", "Product name is required.");
+  if (!category)  setFieldError("category", "Select a category.");
+  if (!warehouse) setFieldError("warehouse", "Select a warehouse.");
+  if (!supplier)  setFieldError("supplier", "Supplier is required.");
+
+  var qty     = readNumber("qty", "Quantity", false);
+  var reorder = readNumber("reorder", "Reorder level", false);
+  var cost    = readNumber("cost", "Unit cost", true);
+
+  // Move focus to the first invalid field in visual (DOM) order.
+  var fieldOrder = ["sku", "name", "category", "warehouse", "qty", "reorder", "cost", "supplier"];
+  var firstBad = fieldOrder.filter(function (n) {
+    return document.getElementById("err-" + n).classList.contains("show");
+  })[0];
+
+  if (firstBad) {
+    document.getElementById("f-" + firstBad).focus();
+    return null;
+  }
+
+  return {
+    id: nextId++,
+    sku: sku,
+    name: name,
+    category: category,
+    warehouse: warehouse,
+    qty: qty,
+    reorder: reorder,
+    cost: cost,
+    supplier: supplier,
+    updated: todayISO()
+  };
+}
+
+/* ============================================================================
+   SECTION 5 — EVENT HANDLERS
+   ========================================================================= */
+
+function handleSearch() {
+  uiState.search = el.search.value;
+  renderTable();
+}
+
+function handleCategoryFilter() {
+  uiState.category = el.catFilter.value;
+  renderTable();
+}
+
+/* Sorting: same column toggles direction, a new column starts ascending. */
+function handleSort(th) {
+  var key = th.getAttribute("data-key");
+  if (!key) return;
+
+  if (uiState.sortKey === key) {
+    uiState.sortDir = uiState.sortDir === "asc" ? "desc" : "asc";
+  } else {
+    uiState.sortKey = key;
+    uiState.sortDir = "asc";
+  }
+  renderTable();
+}
+
+function handleHeadClick(event) {
+  var th = event.target.closest("th[data-key]");
+  if (th) handleSort(th);
+}
+
+function handleHeadKeydown(event) {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  var th = event.target.closest("th[data-key]");
+  if (!th) return;
+  event.preventDefault();          // stop Space from scrolling the page
+  handleSort(th);
+}
+
+/* Delete via event delegation on <tbody> — buttons are re-created on render. */
+function handleBodyClick(event) {
+  var button = event.target.closest(".btn-delete");
+  if (!button) return;
+
+  var id = Number(button.getAttribute("data-id"));
+  var index = inventory.findIndex(function (r) { return r.id === id; });
+  if (index === -1) return;
+
+  var removed = inventory[index];
+  inventory.splice(index, 1);
+  renderAll();
+  showMessage("Removed " + removed.sku + " — " + removed.name + " from inventory.", "is-removed");
+}
+
+function handleSubmit(event) {
+  event.preventDefault();
+
+  var record = validateForm();
+  if (!record) return;
+
+  inventory.push(record);
+
+  // If active filters would hide the new row, clear them so it stays visible.
+  var hidden = !matchesFilters(record);
+  if (hidden) {
+    uiState.search = "";
+    uiState.category = "";
+    el.search.value = "";
+    el.catFilter.value = "";
+  }
+
+  el.form.reset();
+  clearAllErrors();
+  renderAll();
+  flashRow(record.id);
+
+  showMessage(
+    "Added " + record.sku + " — " + record.name + "." +
+    (hidden ? " Filters cleared so the new record is visible." : "")
+  );
+
+  document.getElementById("f-sku").focus();
+}
+
+function handleClear() {
+  el.form.reset();
+  clearAllErrors();
+  document.getElementById("f-sku").focus();
+}
+
+/* ============================================================================
+   SECTION 6 — INITIALISATION
+   ========================================================================= */
+
+/* Category and warehouse options come from the same constants the table uses. */
+function populateSelects() {
+  CATEGORIES.forEach(function (category) {
+    var a = document.createElement("option");
+    a.value = category;
+    a.textContent = category;
+    el.catFilter.appendChild(a);
+
+    var b = document.createElement("option");
+    b.value = category;
+    b.textContent = category;
+    el.formCat.appendChild(b);
+  });
+
+  WAREHOUSES.forEach(function (warehouse) {
+    var option = document.createElement("option");
+    option.value = warehouse;
+    option.textContent = warehouse;
+    el.formWh.appendChild(option);
+  });
+}
+
+function bindEvents() {
+  el.search.addEventListener("input", handleSearch);
+  el.catFilter.addEventListener("change", handleCategoryFilter);
+  el.headRow.addEventListener("click", handleHeadClick);
+  el.headRow.addEventListener("keydown", handleHeadKeydown);
+  el.body.addEventListener("click", handleBodyClick);
+  el.form.addEventListener("submit", handleSubmit);
+  el.clearBtn.addEventListener("click", handleClear);
+}
+
+function init() {
+  populateSelects();
+  bindEvents();
+  renderAll();
+}
+
+init();
+</script>
+
+</body>
+</html>

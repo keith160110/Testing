@@ -1,0 +1,29 @@
+# Local agent config — contains machine-specific paths and personal details.
+.claude/
+
+# Secrets and credentials — never commit.
+.env
+.env.*
+*.key
+*.pem
+*.pfx
+*.p12
+credentials
+secrets.*
+
+# Dependencies and build output (unused here — this project has no build step).
+node_modules/
+
+# OS and editor cruft. OneDrive folders collect these.
+.DS_Store
+Thumbs.db
+desktop.ini
+*~
+*.swp
+.vscode/
+.idea/
+
+# Logs and scratch files.
+*.log
+scratch/
+tmp/
